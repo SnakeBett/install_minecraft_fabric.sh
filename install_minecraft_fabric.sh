@@ -13,7 +13,6 @@ error() { echo -e "${RED}[ERRO] $1${NC}" >&2; exit 1; }
 success() { echo -e "${GREEN}[SUCESSO] $1${NC}"; }
 info() { echo -e "${BLUE}[INFO] $1${NC}"; }
 warning() { echo -e "${YELLOW}[AVISO] $1${NC}"; }
-debug() { echo -e "${CYAN}[DEBUG] $1${NC}"; }
 
 # Verificações iniciais
 check_root() {
@@ -25,7 +24,7 @@ check_os() {
 }
 
 check_internet() {
-    if ! ping -c 1 google.com &>/dev/null; then
+    if ! curl -Is https://google.com &>/dev/null; then
         error "Sem conexão com a internet!"
     fi
 }
@@ -36,7 +35,9 @@ install_dependencies() {
     for pkg in "${packages[@]}"; do
         if ! command -v "$pkg" &>/dev/null; then
             info "Instalando $pkg..."
-            apt-get install -y "$pkg" || error "Falha ao instalar $pkg"
+            if ! apt-get install -y "$pkg"; then
+                error "Falha ao instalar $pkg"
+            fi
         fi
     done
 }
@@ -45,8 +46,9 @@ install_dependencies() {
 install_java() {
     if ! command -v java &>/dev/null; then
         info "Instalando Java 17..."
-        apt-get update >/dev/null
-        apt-get install -y openjdk-17-jdk >/dev/null || error "Falha ao instalar Java"
+        if ! apt-get update || ! apt-get install -y openjdk-17-jdk; then
+            error "Falha na instalação do Java"
+        fi
     fi
 }
 
@@ -56,7 +58,8 @@ validate_minecraft_version() {
     info "Validando versão $version..."
     
     local manifest_url="https://launchermeta.mojang.com/mc/game/version_manifest.json"
-    local version_data=$(curl -s "$manifest_url" | jq -r ".versions[] | select(.id == \"$version\")")
+    local version_data
+    version_data=$(curl -s "$manifest_url" | jq -r ".versions[] | select(.id == \"$version\")")
     
     [ -z "$version_data" ] && error "Versão do Minecraft inválida!"
     success "Versão $version validada!"
@@ -88,11 +91,19 @@ download_minecraft_server() {
     local version=$1
     info "Baixando Minecraft Server $version..."
     
-    local version_url=$(curl -s "https://launchermeta.mojang.com/mc/game/version_manifest.json" | 
-                      jq -r ".versions[] | select(.id == \"$version\") | .url")
+    local version_url
+    version_url=$(curl -s "https://launchermeta.mojang.com/mc/game/version_manifest.json" | 
+                 jq -r ".versions[] | select(.id == \"$version\") | .url")
     
-    local server_url=$(curl -s "$version_url" | jq -r ".downloads.server.url")
-    wget -q -O server.jar "$server_url" || error "Falha no download!"
+    [ -z "$version_url" ] && error "Falha ao obter URL do servidor"
+    
+    local server_url
+    server_url=$(curl -s "$version_url" | jq -r ".downloads.server.url")
+    [ -z "$server_url" ] && error "Falha ao obter URL de download"
+    
+    if ! wget -q -O server.jar "$server_url"; then
+        error "Falha no download do servidor"
+    fi
 }
 
 # Baixa Fabric Installer
@@ -100,9 +111,10 @@ download_fabric_installer() {
     local fabric_version=$1
     info "Baixando Fabric Installer $fabric_version..."
     
-    wget -q -O fabric-installer.jar \
-        "https://maven.fabricmc.net/net/fabricmc/fabric-installer/$fabric_version/fabric-installer-$fabric_version.jar" \
-        || error "Falha no download!"
+    local fabric_url="https://maven.fabricmc.net/net/fabricmc/fabric-installer/$fabric_version/fabric-installer-$fabric_version.jar"
+    if ! wget -q -O fabric-installer.jar "$fabric_url"; then
+        error "Falha no download do Fabric Installer"
+    fi
 }
 
 # Configuração inicial do servidor
@@ -113,15 +125,21 @@ setup_server() {
     echo "eula=true" > eula.txt || error "Falha ao criar eula.txt"
     
     # Configurações básicas
-    cat > server.properties <<-EOL
-        max-players=20
-        online-mode=true
-        server-port=25565
-        enable-rcon=false
-        motd=Meu Servidor Fabric
+    cat > server.properties <<EOL
+max-players=20
+online-mode=true
+server-port=25565
+enable-rcon=false
+motd=Meu Servidor Fabric
 EOL
 
     success "Configuração completa!"
+}
+
+# Verifica arquivos essenciais
+check_installation() {
+    [ ! -f "fabric-server-launch.jar" ] && error "Arquivo fabric-server-launch.jar não encontrado!"
+    [ ! -f "server.jar" ] && error "Arquivo server.jar não encontrado!"
 }
 
 # Main
@@ -154,17 +172,21 @@ main() {
     download_fabric_installer "$FABRIC_VERSION"
     
     info "Instalando Fabric Server..."
-    java -jar fabric-installer.jar server -mcversion "$MC_VERSION" -downloadMinecraft >/dev/null || 
+    if ! java -jar fabric-installer.jar server -mcversion "$MC_VERSION" -downloadMinecraft; then
         error "Falha na instalação do Fabric"
+    fi
 
     setup_server
+    check_installation
 
     # Resultado final
-    echo -e "\n${GREEN}=== Instalação concluída! ==="
+    echo -e "\n${GREEN}=== Instalação concluída! ===${NC}"
     echo -e "Comando para iniciar:"
     echo -e "java -Xmx${RAM_GB}G -Xms${RAM_GB}G -jar fabric-server-launch.jar nogui\n"
-    echo -e "Dica: Use 'screen' para manter o servidor rodando em background!"
-    echo -e "Exemplo: screen -S minecraft${NC}"
+    echo -e "Dica: Para rodar em background:"
+    echo -e "1. Instale screen: sudo apt install screen"
+    echo -e "2. Execute: screen -S minecraft"
+    echo -e "3. Inicie o servidor dentro do screen${NC}"
 }
 
 main
