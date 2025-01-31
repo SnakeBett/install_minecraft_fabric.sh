@@ -42,6 +42,19 @@ check_os() {
     fi
 }
 
+# Verifica dependências e instala pacotes necessários
+install_dependencies() {
+    info "Verificando dependências..."
+    local packages=("curl" "wget" "jq")
+    for pkg in "${packages[@]}"; do
+        if ! command -v "$pkg" &> /dev/null; then
+            info "Instalando $pkg..."
+            sudo apt install -y "$pkg" || error "Falha ao instalar $pkg."
+            success "$pkg instalado com sucesso."
+        fi
+    done
+}
+
 # Verifica se há conexão com a internet
 check_internet() {
     if ! ping -c 1 google.com &> /dev/null; then
@@ -77,7 +90,12 @@ ask_ram() {
 download_minecraft_server() {
     local version=$1
     info "Baixando Minecraft Server versão $version..."
-    wget -O server.jar "https://launcher.mojang.com/v1/objects/$(curl -s "https://launchermeta.mojang.com/mc/game/version_manifest.json" | jq -r ".versions[] | select(.id == \"$version\") | .url" | xargs curl -s | jq -r ".downloads.server.url")" || error "Falha ao baixar o servidor de Minecraft."
+    local version_url=$(curl -s "https://launchermeta.mojang.com/mc/game/version_manifest.json" | jq -r ".versions[] | select(.id == \"$version\") | .url")
+    if [ -z "$version_url" ]; then
+        error "Versão do Minecraft não encontrada: $version"
+    fi
+    local server_url=$(curl -s "$version_url" | jq -r ".downloads.server.url")
+    wget -O server.jar "$server_url" || error "Falha ao baixar o servidor de Minecraft."
     success "Servidor de Minecraft baixado com sucesso."
 }
 
@@ -94,7 +112,7 @@ download_fabric_installer() {
 install_fabric_server() {
     local minecraft_version=$1
     info "Instalando Fabric Server..."
-    java -jar fabric-installer.jar server -mcversion $minecraft_version -downloadMinecraft || error "Falha ao instalar o Fabric Server."
+    java -jar fabric-installer.jar server -mcversion "$minecraft_version" -downloadMinecraft || error "Falha ao instalar o Fabric Server."
     success "Fabric Server instalado com sucesso."
 }
 
@@ -117,27 +135,22 @@ EOL
     success "server.properties configurado com sucesso."
 }
 
-# Inicia o servidor
-start_server() {
-    info "Iniciando o servidor de Minecraft..."
-    java -Xmx${RAM_GB}G -Xms${RAM_GB}G -jar fabric-server-launch.jar nogui || error "Falha ao iniciar o servidor."
-}
-
 # Função principal
 main() {
     echo -e "${GREEN}===== Instalador de Servidor de Minecraft com Fabric =====${NC}"
     check_root
     check_os
     check_internet
+    install_dependencies
     install_java
     ask_ram
 
     read -p "Digite a versão do Minecraft (ex: 1.20.1): " MINECRAFT_VERSION
-    read -p "Digite a versão do Fabric Installer (ex: 0.11.2): " FABRIC_VERSION
+    read -p "Digite a versão do Fabric Installer (ex: 0.14.22): " FABRIC_VERSION
 
-    download_minecraft_server $MINECRAFT_VERSION
-    download_fabric_installer $MINECRAFT_VERSION $FABRIC_VERSION
-    install_fabric_server $MINECRAFT_VERSION
+    download_minecraft_server "$MINECRAFT_VERSION"
+    download_fabric_installer "$MINECRAFT_VERSION" "$FABRIC_VERSION"
+    install_fabric_server "$MINECRAFT_VERSION"
     setup_eula
     setup_server_properties
 
