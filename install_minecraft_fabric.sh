@@ -32,7 +32,7 @@ show_info() { echo -e "${COLOR_BLUE}${ARROW} $1${COLOR_RESET}"; }
 
 # Verificar dependências
 check_dependencies() {
-    local packages=("curl" "wget" "jq" "openjdk-17-jre" "iproute2")
+    local packages=("curl" "wget" "jq" "openjdk-17-jre" "iproute2" "screen")
     for pkg in "${packages[@]}"; do
         if ! command -v "$pkg" &>/dev/null; then
             show_info "Instalando dependência: $pkg..."
@@ -80,9 +80,11 @@ install_server() {
     SERVER_PORT=25565
     echo -e "\n${COLOR_GREEN}Salve o IP e porta do servidor:${COLOR_RESET}"
     echo -e "${COLOR_BLUE}IP: ${SERVER_IP}\nPorta: ${SERVER_PORT}${COLOR_RESET}"
-    read -p "Pressione Enter para iniciar o servidor..."
-    echo -e "\n${COLOR_GREEN}Iniciando servidor...${COLOR_RESET}"
-    java -Xmx${RAM_GB}G -Xms2G -jar fabric-server-launch.jar nogui
+    read -p "Pressione Enter para iniciar o servidor dentro de uma sessão screen..."
+    
+    show_info "Iniciando servidor em uma sessão screen..."
+    screen -S minecraft -dm java -Xmx${RAM_GB}G -Xms2G -jar fabric-server-launch.jar nogui
+    show_success "Servidor iniciado! Para reabrir o painel, use: screen -r minecraft"
 }
 
 # Iniciar
