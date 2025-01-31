@@ -81,15 +81,8 @@ install_server() {
     echo -e "\n${COLOR_GREEN}Salve o IP e porta do servidor:${COLOR_RESET}"
     echo -e "${COLOR_BLUE}IP: ${SERVER_IP}\nPorta: ${SERVER_PORT}${COLOR_RESET}"
     
-    read -p "Deseja iniciar o servidor agora? (y/n): " CONFIRM
-    if [[ "$CONFIRM" =~ ^[Yy]$ ]]; then
-        show_info "Iniciando servidor em uma nova sessão screen..."
-        screen -dmS minecraft bash -c "java -Xmx${RAM_GB}G -Xms2G -jar fabric-server-launch.jar nogui"
-        show_success "Servidor iniciado! Para reabrir o painel, use: screen -r minecraft"
-    else
-        show_info "Servidor não foi iniciado. Você pode iniciar manualmente com:"
-        echo -e "${COLOR_CYAN}screen -S minecraft -dm java -Xmx${RAM_GB}G -Xms2G -jar fabric-server-launch.jar nogui${COLOR_RESET}"
-    fi
+    show_info "Para iniciar o servidor, use o seguinte comando:"
+    echo -e "${COLOR_CYAN}screen -S minecraft -dm java -Xmx${RAM_GB}G -Xms2G -jar fabric-server-launch.jar nogui${COLOR_RESET}"
 }
 
 # Iniciar
