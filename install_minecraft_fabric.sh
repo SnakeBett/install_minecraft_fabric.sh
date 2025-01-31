@@ -72,6 +72,8 @@ install_server() {
     echo -e " • Fabric: ${FABRIC_LATEST}"
     echo -e "${SEPARATOR}${COLOR_RESET}\n"
 
+    read -p "Nome do Servidor: " SERVER_NAME
+    read -p "Dificuldade (peaceful, easy, normal, hard): " SERVER_DIFFICULTY
     read -p "Versão do Minecraft (Enter para ${MC_LATEST}): " MC_VERSION
     MC_VERSION=${MC_VERSION:-$MC_LATEST}
     validate_minecraft_version "$MC_VERSION" || return 1
@@ -91,7 +93,7 @@ install_server() {
     }
 
     show_info "Baixando Fabric Installer ${FABRIC_VERSION}..."
-    FABRIC_URL="https://maven.fabricmc.net/net/fabricmc/fabric-installer/${FABRIC_VERSION}/fabric-installer-${FABRIC_VERSION}.jar"
+    FABRIC_URL=$(curl -s https://meta.fabricmc.net/v2/versions/installer | jq -r '.[0].url')
     wget -q --show-progress -O fabric-installer.jar "$FABRIC_URL" || {
         show_error "Falha no download do Fabric"
         return 1
@@ -109,7 +111,8 @@ install_server() {
 max-players=20
 online-mode=true
 server-port=25565
-motd=Meu Servidor Fabric
+motd=${SERVER_NAME}
+difficulty=${SERVER_DIFFICULTY}
 EOF
 
     if [ -f "fabric-server-launch.jar" ]; then
