@@ -1,192 +1,209 @@
 #!/bin/bash
 
-# Cores para melhorar a interface
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+# Código de cores melhorado
+COLOR_RESET='\033[0m'
+COLOR_RED='\033[1;91m'
+COLOR_GREEN='\033[1;92m'
+COLOR_YELLOW='\033[1;93m'
+COLOR_BLUE='\033[1;94m'
+COLOR_CYAN='\033[1;96m'
+COLOR_WHITE='\033[1;97m'
+COLOR_MAGENTA='\033[1;95m'
 
-# Funções para exibição de mensagens
-error() { echo -e "${RED}[ERRO] $1${NC}" >&2; exit 1; }
-success() { echo -e "${GREEN}[SUCESSO] $1${NC}"; }
-info() { echo -e "${BLUE}[INFO] $1${NC}"; }
-warning() { echo -e "${YELLOW}[AVISO] $1${NC}"; }
+# Elementos visuais
+SEPARATOR="═══════════════════════════════════════════════════"
+TICK="✅"
+CROSS="❌"
+ARROW="»"
 
-# Verificações iniciais
-check_root() {
-    [ "$EUID" -ne 0 ] && error "Execute como root/sudo!"
+# Funções de exibição
+show_header() {
+    clear
+    echo -e "${COLOR_MAGENTB}"
+    echo "███████╗ █████╗ ██████╗ ██╗███╗   ██╗ ██████╗ "
+    echo "██╔════╝██╔══██╗██╔══██╗██║████╗  ██║██╔════╝ "
+    echo "█████╗  ███████║██████╔╝██║██╔██╗ ██║██║  ███╗"
+    echo "██╔══╝  ██╔══██║██╔══██╗██║██║╚██╗██║██║   ██║"
+    echo "██║     ██║  ██║██║  ██║██║██║ ╚████║╚██████╔╝"
+    echo "╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝ ╚═════╝ "
+    echo -e "${COLOR_RESET}"
+    echo -e "${COLOR_CYAN}${SEPARATOR}${COLOR_RESET}"
 }
 
-check_os() {
-    grep -qi 'ubuntu\|debian' /etc/os-release || error "Sistema não suportado (use Ubuntu/Debian)"
+show_error() {
+    echo -e "\n${COLOR_RED}${CROSS} Erro: $1${COLOR_RESET}" >&2
 }
 
-check_internet() {
-    if ! curl -Is https://google.com &>/dev/null; then
-        error "Sem conexão com a internet!"
-    fi
+show_success() {
+    echo -e "${COLOR_GREEN}${TICK} $1${COLOR_RESET}"
 }
 
-# Instala dependências
-install_dependencies() {
+show_warning() {
+    echo -e "${COLOR_YELLOW}⚠️  Aviso: $1${COLOR_RESET}"
+}
+
+show_info() {
+    echo -e "${COLOR_BLUE}${ARROW} $1${COLOR_RESET}"
+}
+
+show_debug() {
+    echo -e "${COLOR_WHITE}🐞 $1${COLOR_RESET}"
+}
+
+show_input_prompt() {
+    echo -e -n "${COLOR_CYAN}${ARROW} $1${COLOR_RESET}"
+}
+
+# Funções de validação
+validate_input() {
+    while true; do
+        read -p "$(show_input_prompt "$2")" input
+        if eval "$1 \"\$input\""; then
+            eval "$3=\"\$input\""
+            break
+        fi
+    done
+}
+
+validate_version() {
+    [[ "$1" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || {
+        show_error "Formato de versão inválido. Use o formato X.X.X ou X.X"
+        return 1
+    }
+}
+
+validate_ram() {
+    [[ "$1" =~ ^[0-9]+$ && "$1" -ge 2 && "$1" -le 128 ]] || {
+        show_error "RAM inválida! Deve ser entre 2-128 GB"
+        return 1
+    }
+}
+
+# Funções principais
+check_dependencies() {
     local packages=("curl" "wget" "jq")
     for pkg in "${packages[@]}"; do
         if ! command -v "$pkg" &>/dev/null; then
-            info "Instalando $pkg..."
+            show_info "Instalando dependência: $pkg..."
             if ! apt-get install -y "$pkg"; then
-                error "Falha ao instalar $pkg"
+                show_error "Falha ao instalar $pkg"
+                exit 1
             fi
         fi
     done
 }
 
-# Instala Java 17
-install_java() {
-    if ! command -v java &>/dev/null; then
-        info "Instalando Java 17..."
-        if ! apt-get update || ! apt-get install -y openjdk-17-jdk; then
-            error "Falha na instalação do Java"
-        fi
-    fi
+get_latest_versions() {
+    show_info "Obtendo versões mais recentes..."
+    MC_LATEST=$(curl -s https://launchermeta.mojang.com/mc/game/version_manifest.json | jq -r '.latest.release')
+    FABRIC_LATEST=$(curl -s https://meta.fabricmc.net/v2/versions/installer | jq -r '.[0].version')
 }
 
-# Valida versão do Minecraft
 validate_minecraft_version() {
     local version=$1
-    info "Validando versão $version..."
-    
-    local manifest_url="https://launchermeta.mojang.com/mc/game/version_manifest.json"
-    local version_data
-    version_data=$(curl -s "$manifest_url" | jq -r ".versions[] | select(.id == \"$version\")")
-    
-    [ -z "$version_data" ] && error "Versão do Minecraft inválida!"
-    success "Versão $version validada!"
+    show_info "Verificando versão do Minecraft..."
+    local versions
+    versions=$(curl -s https://launchermeta.mojang.com/mc/game/version_manifest.json | jq -r '.versions[].id')
+    if ! grep -q "^$version$" <<< "$versions"; then
+        show_error "Versão do Minecraft não encontrada!"
+        return 1
+    fi
 }
 
-# Valida versão do Fabric
 validate_fabric_version() {
     local version=$1
-    info "Validando versão do Fabric $version..."
-    
-    local fabric_url="https://maven.fabricmc.net/net/fabricmc/fabric-installer/$version/fabric-installer-$version.jar"
-    if ! curl --head --silent --fail "$fabric_url" &>/dev/null; then
-        error "Versão do Fabric inválida! Consulte: https://fabricmc.net/develop/"
+    show_info "Verificando versão do Fabric..."
+    if ! curl -Is "https://maven.fabricmc.net/net/fabricmc/fabric-installer/$version/fabric-installer-$version.jar" | grep -q "200 OK"; then
+        show_error "Versão do Fabric não encontrada!"
+        return 1
     fi
-    success "Versão do Fabric validada!"
 }
 
-# Configura memória
-configure_ram() {
-    while :; do
-        read -p "${CYAN}» Quantos GB de RAM alocar? (ex: 4): ${NC}" RAM_GB
-        [[ $RAM_GB =~ ^[0-9]+$ && $RAM_GB -ge 2 ]] && break
-        warning "Valor inválido! Mínimo 2GB"
+install_server() {
+    show_header
+    get_latest_versions
+    
+    echo -e "${COLOR_CYAN}${SEPARATOR}"
+    echo -e " Versões Recomendadas:"
+    echo -e " • Minecraft: ${MC_LATEST}"
+    echo -e " • Fabric: ${FABRIC_LATEST}"
+    echo -e "${SEPARATOR}${COLOR_RESET}\n"
+
+    # Entrada da versão do Minecraft
+    validate_input 'validate_version' "Versão do Minecraft (deixe em branco para ${MC_LATEST}): " MC_VERSION
+    MC_VERSION=${MC_VERSION:-$MC_LATEST}
+    validate_minecraft_version "$MC_VERSION" || return 1
+
+    # Entrada da versão do Fabric
+    while true; do
+        validate_input 'validate_version' "Versão do Fabric (deixe em branco para ${FABRIC_LATEST}): " FABRIC_VERSION
+        FABRIC_VERSION=${FABRIC_VERSION:-$FABRIC_LATEST}
+        if validate_fabric_version "$FABRIC_VERSION"; then
+            break
+        else
+            show_warning "Tente novamente ou pressione Ctrl+C para sair"
+        fi
     done
-}
 
-# Baixa servidor Minecraft
-download_minecraft_server() {
-    local version=$1
-    info "Baixando Minecraft Server $version..."
-    
-    local version_url
-    version_url=$(curl -s "https://launchermeta.mojang.com/mc/game/version_manifest.json" | 
-                 jq -r ".versions[] | select(.id == \"$version\") | .url")
-    
-    [ -z "$version_url" ] && error "Falha ao obter URL do servidor"
-    
-    local server_url
-    server_url=$(curl -s "$version_url" | jq -r ".downloads.server.url")
-    [ -z "$server_url" ] && error "Falha ao obter URL de download"
-    
-    if ! wget -q -O server.jar "$server_url"; then
-        error "Falha no download do servidor"
+    # Configuração de RAM
+    validate_input 'validate_ram' "Quantidade de RAM para alocar (GB): " RAM_GB
+
+    # Download do Minecraft
+    show_info "Baixando Minecraft Server ${MC_VERSION}..."
+    local server_url=$(curl -s "https://launchermeta.mojang.com/mc/game/version_manifest.json" | 
+                     jq -r ".versions[] | select(.id == \"$MC_VERSION\") | .url" |
+                     xargs curl -s | jq -r ".downloads.server.url")
+    wget -q --show-progress -O server.jar "$server_url" || {
+        show_error "Falha no download do Minecraft"
+        return 1
+    }
+
+    # Download do Fabric
+    show_info "Baixando Fabric Installer ${FABRIC_VERSION}..."
+    wget -q --show-progress -O fabric-installer.jar \
+        "https://maven.fabricmc.net/net/fabricmc/fabric-installer/${FABRIC_VERSION}/fabric-installer-${FABRIC_VERSION}.jar" || {
+        show_error "Falha no download do Fabric"
+        return 1
+    }
+
+    # Instalação
+    show_info "Instalando Fabric Server..."
+    if ! java -jar fabric-installer.jar server -mcversion "$MC_VERSION" -downloadMinecraft -noprofile; then
+        show_error "Falha na instalação do Fabric"
+        return 1
     fi
-}
 
-# Baixa Fabric Installer
-download_fabric_installer() {
-    local fabric_version=$1
-    info "Baixando Fabric Installer $fabric_version..."
-    
-    local fabric_url="https://maven.fabricmc.net/net/fabricmc/fabric-installer/$fabric_version/fabric-installer-$fabric_version.jar"
-    if ! wget -q -O fabric-installer.jar "$fabric_url"; then
-        error "Falha no download do Fabric Installer"
-    fi
-}
-
-# Configuração inicial do servidor
-setup_server() {
-    info "Configurando servidor..."
-    
-    # Aceitar EULA
-    echo "eula=true" > eula.txt || error "Falha ao criar eula.txt"
-    
-    # Configurações básicas
-    cat > server.properties <<EOL
+    # Configuração
+    show_info "Configurando servidor..."
+    echo "eula=true" > eula.txt
+    cat > server.properties <<EOF
 max-players=20
 online-mode=true
 server-port=25565
-enable-rcon=false
 motd=Meu Servidor Fabric
-EOL
+EOF
 
-    success "Configuração completa!"
-}
-
-# Verifica arquivos essenciais
-check_installation() {
-    [ ! -f "fabric-server-launch.jar" ] && error "Arquivo fabric-server-launch.jar não encontrado!"
-    [ ! -f "server.jar" ] && error "Arquivo server.jar não encontrado!"
-}
-
-# Main
-main() {
-    clear
-    echo -e "${GREEN}=== Minecraft Fabric Server Installer ===${NC}"
-    
-    # Verificações
-    check_root
-    check_os
-    check_internet
-    install_dependencies
-    install_java
-
-    # Entrada do usuário
-    echo -e "\n${CYAN}Versões recentes recomendadas:"
-    echo -e "• Minecraft: 1.20.1"
-    echo -e "• Fabric: 0.14.22${NC}\n"
-
-    read -p "${CYAN}» Versão do Minecraft (ex: 1.20.1): ${NC}" MC_VERSION
-    validate_minecraft_version "$MC_VERSION"
-
-    read -p "${CYAN}» Versão do Fabric Installer (ex: 0.14.22): ${NC}" FABRIC_VERSION
-    validate_fabric_version "$FABRIC_VERSION"
-
-    configure_ram
-
-    # Download e instalação
-    download_minecraft_server "$MC_VERSION"
-    download_fabric_installer "$FABRIC_VERSION"
-    
-    info "Instalando Fabric Server..."
-    if ! java -jar fabric-installer.jar server -mcversion "$MC_VERSION" -downloadMinecraft; then
-        error "Falha na instalação do Fabric"
+    # Verificação final
+    if [ -f "fabric-server-launch.jar" ]; then
+        show_success "Instalação concluída com sucesso!"
+        echo -e "\n${COLOR_GREEN}Comando para iniciar:"
+        echo -e "java -Xmx${RAM_GB}G -Xms2G -jar fabric-server-launch.jar nogui\n"
+        echo -e "Dicas:"
+        echo -e "• Use 'screen' para executar em segundo plano"
+        echo -e "• Configure o server.properties para personalizar"
+        echo -e "${SEPARATOR}${COLOR_RESET}"
+    else
+        show_error "Algo deu errado na instalação!"
+        return 1
     fi
-
-    setup_server
-    check_installation
-
-    # Resultado final
-    echo -e "\n${GREEN}=== Instalação concluída! ===${NC}"
-    echo -e "Comando para iniciar:"
-    echo -e "java -Xmx${RAM_GB}G -Xms${RAM_GB}G -jar fabric-server-launch.jar nogui\n"
-    echo -e "Dica: Para rodar em background:"
-    echo -e "1. Instale screen: sudo apt install screen"
-    echo -e "2. Execute: screen -S minecraft"
-    echo -e "3. Inicie o servidor dentro do screen${NC}"
 }
 
+# Fluxo principal
+main() {
+    trap 'show_error "Instalação cancelada pelo usuário!"; exit 1' INT
+    check_dependencies
+    install_server
+}
+
+# Iniciar
 main
