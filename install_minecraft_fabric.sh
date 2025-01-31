@@ -32,7 +32,7 @@ show_info() { echo -e "${COLOR_BLUE}${ARROW} $1${COLOR_RESET}"; }
 
 # Verificar dependências
 check_dependencies() {
-    local packages=("curl" "wget" "jq" "openjdk-17-jre")
+    local packages=("curl" "wget" "jq" "openjdk-17-jre" "iproute2")
     for pkg in "${packages[@]}"; do
         if ! command -v "$pkg" &>/dev/null; then
             show_info "Instalando dependência: $pkg..."
@@ -42,6 +42,11 @@ check_dependencies() {
             fi
         fi
     done
+}
+
+# Obter IP do servidor
+get_server_ip() {
+    hostname -I | awk '{print $1}'
 }
 
 # Obter versões mais recentes
@@ -117,8 +122,11 @@ EOF
 
     if [ -f "fabric-server-launch.jar" ]; then
         show_success "Instalação concluída!"
+        SERVER_IP=$(get_server_ip)
+        SERVER_PORT=25565
         echo -e "\n${COLOR_GREEN}Comando para iniciar:" 
         echo -e "java -Xmx${RAM_GB}G -Xms2G -jar fabric-server-launch.jar nogui\n"
+        echo -e "${COLOR_BLUE}IP do Servidor: ${SERVER_IP}:${SERVER_PORT}${COLOR_RESET}"
         echo -e "${SEPARATOR}${COLOR_RESET}"
     else
         show_error "Algo deu errado na instalação!"
