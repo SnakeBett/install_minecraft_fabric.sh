@@ -75,7 +75,35 @@ install_server() {
     FABRIC_VERSION=${FABRIC_VERSION:-$FABRIC_LATEST}
     read -p "Quantidade de RAM para alocar (GB): " RAM_GB
 
-    show_info "Configurando servidor..."
+    # Criar diretório do servidor
+    SERVER_DIR="${HOME}/${SERVER_NAME}"
+    mkdir -p "$SERVER_DIR"
+    cd "$SERVER_DIR" || exit
+
+    show_info "Baixando o instalador do Fabric..."
+    wget -q "https://meta.fabricmc.net/v2/versions/loader/${MC_VERSION}/${FABRIC_VERSION}/server/jar" -O fabric-installer.jar
+
+    show_info "Executando o instalador do Fabric..."
+    java -jar fabric-installer.jar server -mcversion "$MC_VERSION" -downloadMinecraft
+
+    if [ ! -f "fabric-server-launch.jar" ]; then
+        show_error "Falha ao instalar o Fabric! Verifique se a versão do Minecraft está correta."
+        exit 1
+    fi
+
+    show_info "Aceitando os termos do Minecraft (EULA)..."
+    echo "eula=true" > eula.txt
+
+    show_info "Criando script de inicialização..."
+    cat <<EOF > start.sh
+#!/bin/bash
+java -Xmx${RAM_GB}G -Xms2G -jar fabric-server-launch.jar nogui
+EOF
+
+    chmod +x start.sh
+
+    show_success "Instalação concluída!"
+
     SERVER_IP=$(get_server_ip)
     SERVER_PORT=25565
     echo -e "\n${COLOR_GREEN}Salve o IP e porta do servidor:${COLOR_RESET}"
@@ -83,7 +111,7 @@ install_server() {
     
     show_info "Para iniciar o servidor e mantê-lo rodando, use os seguintes comandos:"
     echo -e "${COLOR_CYAN}1. Criar e entrar na sessão do servidor: screen -S minecraft${COLOR_RESET}"
-    echo -e "${COLOR_CYAN}2. Iniciar o servidor dentro do screen: java -Xmx${RAM_GB}G -Xms2G -jar fabric-server-launch.jar nogui${COLOR_RESET}"
+    echo -e "${COLOR_CYAN}2. Iniciar o servidor dentro do screen: ./start.sh${COLOR_RESET}"
     echo -e "${COLOR_CYAN}3. Para sair do screen sem encerrar o servidor: Pressione CTRL + A, depois D${COLOR_RESET}"
     echo -e "${COLOR_CYAN}4. Para voltar ao servidor: screen -r minecraft${COLOR_RESET}"
 }
