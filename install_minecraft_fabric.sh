@@ -81,8 +81,11 @@ install_server() {
     echo -e "\n${COLOR_GREEN}Salve o IP e porta do servidor:${COLOR_RESET}"
     echo -e "${COLOR_BLUE}IP: ${SERVER_IP}\nPorta: ${SERVER_PORT}${COLOR_RESET}"
     
-    show_info "Para iniciar o servidor, use o seguinte comando:"
-    echo -e "${COLOR_CYAN}screen -S minecraft -dm java -Xmx${RAM_GB}G -Xms2G -jar fabric-server-launch.jar nogui${COLOR_RESET}"
+    show_info "Para iniciar o servidor e mantê-lo rodando, use os seguintes comandos:"
+    echo -e "${COLOR_CYAN}1. Criar e entrar na sessão do servidor: screen -S minecraft${COLOR_RESET}"
+    echo -e "${COLOR_CYAN}2. Iniciar o servidor dentro do screen: java -Xmx${RAM_GB}G -Xms2G -jar fabric-server-launch.jar nogui${COLOR_RESET}"
+    echo -e "${COLOR_CYAN}3. Para sair do screen sem encerrar o servidor: Pressione CTRL + A, depois D${COLOR_RESET}"
+    echo -e "${COLOR_CYAN}4. Para voltar ao servidor: screen -r minecraft${COLOR_RESET}"
 }
 
 # Iniciar
