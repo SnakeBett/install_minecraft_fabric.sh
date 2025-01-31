@@ -82,9 +82,14 @@ install_server() {
     echo -e "${COLOR_BLUE}IP: ${SERVER_IP}\nPorta: ${SERVER_PORT}${COLOR_RESET}"
     read -p "Pressione Enter para iniciar o servidor dentro de uma sessão screen..."
     
-    show_info "Iniciando servidor em uma sessão screen..."
-    screen -S minecraft -dm java -Xmx${RAM_GB}G -Xms2G -jar fabric-server-launch.jar nogui
-    show_success "Servidor iniciado! Para reabrir o painel, use: screen -r minecraft"
+    # Verificar se a sessão já existe
+    if screen -list | grep -q "\.minecraft"; then
+        show_info "Já existe uma sessão 'minecraft' em execução. Use: screen -r minecraft"
+    else
+        show_info "Iniciando servidor em uma nova sessão screen..."
+        screen -dmS minecraft bash -c "java -Xmx${RAM_GB}G -Xms2G -jar fabric-server-launch.jar nogui"
+        show_success "Servidor iniciado! Para reabrir o painel, use: screen -r minecraft"
+    fi
 }
 
 # Iniciar
