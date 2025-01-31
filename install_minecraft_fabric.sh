@@ -56,16 +56,6 @@ get_latest_versions() {
     FABRIC_LATEST=$(curl -s https://meta.fabricmc.net/v2/versions/installer | jq -r '.[0].version')
 }
 
-# Validar versão do Minecraft
-validate_minecraft_version() {
-    local version=$1
-    local versions=$(curl -s https://launchermeta.mojang.com/mc/game/version_manifest.json | jq -r '.versions[].id')
-    if ! grep -q "^$version$" <<< "$versions"; then
-        show_error "Versão do Minecraft não encontrada!"
-        return 1
-    fi
-}
-
 # Instalar servidor
 install_server() {
     show_header
@@ -81,57 +71,18 @@ install_server() {
     read -p "Dificuldade (peaceful, easy, normal, hard): " SERVER_DIFFICULTY
     read -p "Versão do Minecraft (Enter para ${MC_LATEST}): " MC_VERSION
     MC_VERSION=${MC_VERSION:-$MC_LATEST}
-    validate_minecraft_version "$MC_VERSION" || return 1
-
     read -p "Versão do Fabric (Enter para ${FABRIC_LATEST}): " FABRIC_VERSION
     FABRIC_VERSION=${FABRIC_VERSION:-$FABRIC_LATEST}
-
     read -p "Quantidade de RAM para alocar (GB): " RAM_GB
 
-    show_info "Baixando Minecraft Server ${MC_VERSION}..."
-    local server_url=$(curl -s "https://launchermeta.mojang.com/mc/game/version_manifest.json" |
-                     jq -r ".versions[] | select(.id == \"$MC_VERSION\") | .url" |
-                     xargs curl -s | jq -r ".downloads.server.url")
-    wget -q --show-progress -O server.jar "$server_url" || {
-        show_error "Falha no download do Minecraft"
-        return 1
-    }
-
-    show_info "Baixando Fabric Installer ${FABRIC_VERSION}..."
-    FABRIC_URL=$(curl -s https://meta.fabricmc.net/v2/versions/installer | jq -r '.[0].url')
-    wget -q --show-progress -O fabric-installer.jar "$FABRIC_URL" || {
-        show_error "Falha no download do Fabric"
-        return 1
-    }
-
-    show_info "Instalando Fabric Server..."
-    java -jar fabric-installer.jar server -mcversion "$MC_VERSION" -downloadMinecraft -noprofile || {
-        show_error "Falha na instalação do Fabric"
-        return 1
-    }
-
     show_info "Configurando servidor..."
-    echo "eula=true" > eula.txt
-    cat > server.properties <<EOF
-max-players=20
-online-mode=true
-server-port=25565
-motd=${SERVER_NAME}
-difficulty=${SERVER_DIFFICULTY}
-EOF
-
-    if [ -f "fabric-server-launch.jar" ]; then
-        show_success "Instalação concluída!"
-        SERVER_IP=$(get_server_ip)
-        SERVER_PORT=25565
-        echo -e "\n${COLOR_GREEN}Comando para iniciar:" 
-        echo -e "java -Xmx${RAM_GB}G -Xms2G -jar fabric-server-launch.jar nogui\n"
-        echo -e "${COLOR_BLUE}IP do Servidor: ${SERVER_IP}:${SERVER_PORT}${COLOR_RESET}"
-        echo -e "${SEPARATOR}${COLOR_RESET}"
-    else
-        show_error "Algo deu errado na instalação!"
-        return 1
-    fi
+    SERVER_IP=$(get_server_ip)
+    SERVER_PORT=25565
+    echo -e "\n${COLOR_GREEN}Salve o IP e porta do servidor:${COLOR_RESET}"
+    echo -e "${COLOR_BLUE}IP: ${SERVER_IP}\nPorta: ${SERVER_PORT}${COLOR_RESET}"
+    read -p "Pressione Enter para iniciar o servidor..."
+    echo -e "\n${COLOR_GREEN}Iniciando servidor...${COLOR_RESET}"
+    java -Xmx${RAM_GB}G -Xms2G -jar fabric-server-launch.jar nogui
 }
 
 # Iniciar
