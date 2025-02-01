@@ -85,6 +85,8 @@ install_server() {
     read -p "Online Mode (true para original, false para pirata): " ONLINE_MODE
     read -p "Versão do Minecraft (Enter para ${MC_LATEST}): " MC_VERSION
     MC_VERSION=${MC_VERSION:-$MC_LATEST}
+    read -p "Versão do Fabric (Enter para ${FABRIC_LATEST}): " FABRIC_VERSION
+    FABRIC_VERSION=${FABRIC_VERSION:-$FABRIC_LATEST}
     read -p "Quantidade de RAM para alocar (GB): " RAM_GB
 
     # Criar diretório do servidor
@@ -99,10 +101,10 @@ install_server() {
     wget -O fabric-installer.jar "$FABRIC_INSTALLER_URL"
 
     show_info "Executando o instalador do Fabric..."
-    java -jar fabric-installer.jar server -mcversion "$MC_VERSION" -downloadMinecraft -dir "$SERVER_DIR"
+    java -jar fabric-installer.jar server -mcversion "$MC_VERSION" -loader "$FABRIC_VERSION" -downloadMinecraft -dir "$SERVER_DIR"
 
     if [ ! -f "fabric-server-launch.jar" ]; then
-        show_error "Falha ao instalar o Fabric! Verifique se a versão do Minecraft está correta."
+        show_error "Falha ao instalar o Fabric! Verifique se a versão do Minecraft e Fabric está correta."
         exit 1
     fi
 
