@@ -69,7 +69,10 @@ install_server() {
     echo -e "${SEPARATOR}${COLOR_RESET}\n"
 
     read -p "Nome do Servidor: " SERVER_NAME
+    read -p "Mensagem do Servidor (MOTD): " SERVER_MOTD
     read -p "Dificuldade (peaceful, easy, normal, hard): " SERVER_DIFFICULTY
+    read -p "Modo do servidor (survival, creative, adventure, spectator): " SERVER_GAMEMODE
+    read -p "Online Mode (true para original, false para pirata): " ONLINE_MODE
     read -p "Versão do Minecraft (Enter para ${MC_LATEST}): " MC_VERSION
     MC_VERSION=${MC_VERSION:-$MC_LATEST}
     read -p "Quantidade de RAM para alocar (GB): " RAM_GB
@@ -95,6 +98,62 @@ install_server() {
 
     show_info "Aceitando os termos do Minecraft (EULA)..."
     echo "eula=true" > eula.txt
+
+    show_info "Criando arquivo server.properties..."
+    cat <<EOF > server.properties
+#Minecraft server properties
+#$(date)
+allow-flight=true
+allow-nether=true
+broadcast-console-to-ops=true
+broadcast-rcon-to-ops=true
+difficulty=${SERVER_DIFFICULTY}
+enable-command-block=true
+enable-jmx-monitoring=false
+enable-query=false
+enable-rcon=false
+enable-status=true
+enforce-whitelist=true
+entity-broadcast-range-percentage=100
+force-gamemode=false
+function-permission-level=2
+gamemode=${SERVER_GAMEMODE}
+generate-structures=true
+generator-settings=
+hardcore=false
+level-name=world
+level-seed=
+level-type=default
+max-build-height=256
+max-players=10
+max-tick-time=120000
+max-world-size=29999984
+motd=${SERVER_MOTD}
+network-compression-threshold=256
+online-mode=${ONLINE_MODE}
+op-permission-level=4
+player-idle-timeout=0
+prevent-proxy-connections=false
+pvp=true
+query.port=25565
+rate-limit=0
+rcon.password=
+rcon.port=25575
+resource-pack=
+resource-pack-sha1=
+server-ip=
+server-port=25565
+snooper-enabled=false
+spawn-animals=true
+spawn-monsters=true
+spawn-npcs=true
+spawn-protection=16
+sync-chunk-writes=true
+text-filtering-config=
+use-native-transport=true
+view-distance=10
+white-list=false
+EOF
 
     show_info "Criando script de inicialização..."
     cat <<EOF > start.sh
