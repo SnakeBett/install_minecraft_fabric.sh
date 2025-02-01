@@ -2,7 +2,9 @@
 
 # Cores aprimoradas
 COLOR_RESET='\033[0m'
+COLOR_RED='\033[1;91m'
 COLOR_GREEN='\033[1;92m'
+COLOR_YELLOW='\033[1;93m'
 COLOR_BLUE='\033[1;94m'
 COLOR_CYAN='\033[1;96m'
 COLOR_MAGENTA='\033[1;95m'
@@ -10,6 +12,7 @@ COLOR_MAGENTA='\033[1;95m'
 # Elementos visuais
 SEPARATOR="================================================="
 TICK="\xE2\x9C\x85"
+CROSS="\xE2\x9D\x8C"
 ARROW="\xBB"
 
 # Exibir cabeçalho
@@ -22,10 +25,11 @@ show_header() {
 }
 
 # Exibir mensagens
+show_error() { echo -e "${COLOR_RED}${CROSS} Erro: $1${COLOR_RESET}" >&2; }
 show_success() { echo -e "${COLOR_GREEN}${TICK} $1${COLOR_RESET}"; }
 show_info() { echo -e "${COLOR_BLUE}${ARROW} $1${COLOR_RESET}"; }
 
-# Verificar e instalar dependências
+# Verificar dependências
 check_dependencies() {
     local packages=("curl" "wget" "jq" "openjdk-17-jre" "iproute2" "screen")
     for pkg in "${packages[@]}"; do
@@ -47,39 +51,14 @@ get_latest_versions() {
     FABRIC_INSTALLER_URL=$(curl -s https://meta.fabricmc.net/v2/versions/installer | jq -r '.[0].url')
 }
 
-# Criar alias para iniciar o servidor com 'start'
+# Criar alias permanente para iniciar o servidor com 'start'
 setup_alias() {
     ALIAS_CMD="alias start='cd /minecraft && ./start.sh'"
+    
     if ! grep -Fxq "$ALIAS_CMD" ~/.bashrc; then
         echo "$ALIAS_CMD" >> ~/.bashrc
         source ~/.bashrc
     fi
-}
-
-# Configurar o serviço systemd
-setup_systemd() {
-    show_info "Criando serviço para iniciar automaticamente..."
-    cat <<EOF | sudo tee /etc/systemd/system/minecraft.service > /dev/null
-[Unit]
-Description=Servidor Minecraft Fabric
-After=network.target
-
-[Service]
-User=root
-WorkingDirectory=/minecraft
-ExecStart=/minecraft/start.sh
-Restart=always
-Nice=1
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-    sudo systemctl daemon-reload
-    sudo systemctl enable minecraft
-    sudo systemctl start minecraft
-
-    show_success "Serviço systemd configurado! O servidor iniciará automaticamente ao reiniciar a VPS."
 }
 
 # Instalar servidor
@@ -191,9 +170,6 @@ EOF
     # Configurar alias para rodar com 'start'
     setup_alias
 
-    # Configurar systemd para iniciar automaticamente
-    setup_systemd
-
     show_success "Instalação concluída! Para iniciar o servidor, basta digitar: ${COLOR_GREEN}start${COLOR_RESET}"
 
     SERVER_IP=$(hostname -I | awk '{print $1}')
@@ -202,6 +178,7 @@ EOF
 
 # Iniciar
 main() {
+    trap 'show_error "Instalação cancelada pelo usuário!"; exit 1' INT
     check_dependencies
     install_server
 }
