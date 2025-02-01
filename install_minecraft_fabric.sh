@@ -74,8 +74,6 @@ install_server() {
     MC_VERSION=${MC_VERSION:-$MC_LATEST}
     read -p "Versão do Fabric (Enter para ${FABRIC_LATEST}): " FABRIC_VERSION
     FABRIC_VERSION=${FABRIC_VERSION:-$FABRIC_LATEST}
-    read -p "Porta do Servidor (Enter para 25565): " SERVER_PORT
-    SERVER_PORT=${SERVER_PORT:-25565}
     read -p "Quantidade de RAM para alocar (GB): " RAM_GB
 
     # Criar diretório do servidor em /minecraft
@@ -100,10 +98,18 @@ install_server() {
     show_info "Aceitando os termos do Minecraft (EULA)..."
     echo "eula=true" > eula.txt
 
+    show_info "Criando arquivo server.properties..."
+    cat <<EOF > server.properties
+#Minecraft server properties
+#$(date)
+difficulty=${SERVER_DIFFICULTY}
+motd=${SERVER_MOTD}
+EOF
+
     show_info "Criando script de inicialização..."
     cat <<EOF > start.sh
 #!/bin/bash
-java -Xmx${RAM_GB}G -Xms2G -jar fabric-server-launch.jar nogui --port ${SERVER_PORT}
+java -Xmx${RAM_GB}G -Xms2G -jar fabric-server-launch.jar nogui
 EOF
 
     chmod +x start.sh
@@ -114,7 +120,7 @@ EOF
     show_success "Instalação concluída! Para iniciar o servidor, basta digitar: ${COLOR_GREEN}start${COLOR_RESET}"
 
     SERVER_IP=$(hostname -I | awk '{print $1}')
-    echo -e "\n${COLOR_GREEN}IP do Servidor:${COLOR_RESET} ${COLOR_BLUE}${SERVER_IP}:${SERVER_PORT}${COLOR_RESET}"
+    echo -e "\n${COLOR_GREEN}IP do Servidor:${COLOR_RESET} ${COLOR_BLUE}${SERVER_IP}:25565${COLOR_RESET}"
 }
 
 # Iniciar
