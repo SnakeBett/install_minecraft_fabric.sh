@@ -53,7 +53,8 @@ get_server_ip() {
 get_latest_versions() {
     show_info "Obtendo versões mais recentes..."
     MC_LATEST=$(curl -s https://launchermeta.mojang.com/mc/game/version_manifest.json | jq -r '.latest.release')
-    FABRIC_LATEST=$(curl -s https://meta.fabricmc.net/v2/versions/installer | jq -r '.[0].version')
+    FABRIC_LATEST=$(curl -s https://meta.fabricmc.net/v2/versions/loader | jq -r '.[0].version')
+    FABRIC_INSTALLER_URL=$(curl -s https://meta.fabricmc.net/v2/versions/installer | jq -r '.[0].url')
 }
 
 # Instalar servidor
@@ -64,15 +65,13 @@ install_server() {
     echo -e "${COLOR_CYAN}${SEPARATOR}"
     echo -e " Versões Recomendadas:"
     echo -e " • Minecraft: ${MC_LATEST}"
-    echo -e " • Fabric: ${FABRIC_LATEST}"
+    echo -e " • Fabric Loader: ${FABRIC_LATEST}"
     echo -e "${SEPARATOR}${COLOR_RESET}\n"
 
     read -p "Nome do Servidor: " SERVER_NAME
     read -p "Dificuldade (peaceful, easy, normal, hard): " SERVER_DIFFICULTY
     read -p "Versão do Minecraft (Enter para ${MC_LATEST}): " MC_VERSION
     MC_VERSION=${MC_VERSION:-$MC_LATEST}
-    read -p "Versão do Fabric (Enter para ${FABRIC_LATEST}): " FABRIC_VERSION
-    FABRIC_VERSION=${FABRIC_VERSION:-$FABRIC_LATEST}
     read -p "Quantidade de RAM para alocar (GB): " RAM_GB
 
     # Criar diretório do servidor
@@ -80,11 +79,14 @@ install_server() {
     mkdir -p "$SERVER_DIR"
     cd "$SERVER_DIR" || exit
 
+    show_info "Baixando o servidor oficial do Minecraft..."
+    wget -q "https://piston-data.mojang.com/v1/objects/84194a2f286ef7c14ed7ce0090dba59902951553/server.jar" -O server.jar
+
     show_info "Baixando o instalador do Fabric..."
-    wget -q "https://meta.fabricmc.net/v2/versions/loader/${MC_VERSION}/${FABRIC_VERSION}/server/jar" -O fabric-installer.jar
+    wget -O fabric-installer.jar "$FABRIC_INSTALLER_URL"
 
     show_info "Executando o instalador do Fabric..."
-    java -jar fabric-installer.jar server -mcversion "$MC_VERSION" -downloadMinecraft
+    java -jar fabric-installer.jar server -mcversion "$MC_VERSION" -downloadMinecraft -dir "$SERVER_DIR"
 
     if [ ! -f "fabric-server-launch.jar" ]; then
         show_error "Falha ao instalar o Fabric! Verifique se a versão do Minecraft está correta."
