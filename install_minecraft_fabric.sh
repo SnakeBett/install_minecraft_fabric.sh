@@ -47,13 +47,24 @@ get_latest_versions() {
     FABRIC_INSTALLER_URL=$(curl -s https://meta.fabricmc.net/v2/versions/installer | jq -r '.[0].url')
 }
 
-# Criar alias para iniciar o servidor com 'start'
+# Criar alias e garantir que sempre funcione
 setup_alias() {
-    ALIAS_CMD="alias start='cd /minecraft && ./start.sh'"
-    if ! grep -Fxq "$ALIAS_CMD" ~/.bashrc; then
-        echo "$ALIAS_CMD" >> ~/.bashrc
-        source ~/.bashrc
+    echo "Criando alias permanente para 'start'..."
+    
+    # Adiciona o alias ao ~/.bashrc caso não exista
+    if ! grep -Fxq "alias start='cd /minecraft && ./start.sh'" ~/.bashrc; then
+        echo "alias start='cd /minecraft && ./start.sh'" >> ~/.bashrc
     fi
+
+    # Garante que o alias seja carregado imediatamente
+    source ~/.bashrc
+
+    # Cria um script no /usr/local/bin para fallback
+    echo "#!/bin/bash" > /usr/local/bin/start
+    echo "cd /minecraft && ./start.sh" >> /usr/local/bin/start
+    chmod +x /usr/local/bin/start
+
+    show_success "Alias 'start' configurado! Agora ele sempre funcionará."
 }
 
 # Instalar servidor
@@ -114,7 +125,7 @@ EOF
 
     chmod +x start.sh
 
-    # Configurar alias para rodar com 'start'
+    # Configurar alias e fallback
     setup_alias
 
     show_success "Instalação concluída! Para iniciar o servidor, basta digitar: ${COLOR_GREEN}start${COLOR_RESET}"
