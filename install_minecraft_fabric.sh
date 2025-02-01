@@ -7,7 +7,6 @@ COLOR_GREEN='\033[1;92m'
 COLOR_YELLOW='\033[1;93m'
 COLOR_BLUE='\033[1;94m'
 COLOR_CYAN='\033[1;96m'
-COLOR_WHITE='\033[1;97m'
 COLOR_MAGENTA='\033[1;95m'
 
 # Elementos visuais
@@ -44,11 +43,6 @@ check_dependencies() {
     done
 }
 
-# Obter IP do servidor
-get_server_ip() {
-    hostname -I | awk '{print $1}'
-}
-
 # Obter versões mais recentes
 get_latest_versions() {
     show_info "Obtendo versões mais recentes..."
@@ -59,7 +53,7 @@ get_latest_versions() {
 
 # Criar alias permanente para iniciar o servidor com 'start'
 setup_alias() {
-    ALIAS_CMD="alias start='cd ${SERVER_DIR} && ./start.sh'"
+    ALIAS_CMD="alias start='cd /minecraft && ./start.sh'"
     
     if ! grep -Fxq "$ALIAS_CMD" ~/.bashrc; then
         echo "$ALIAS_CMD" >> ~/.bashrc
@@ -78,19 +72,17 @@ install_server() {
     echo -e " • Fabric Loader: ${FABRIC_LATEST}"
     echo -e "${SEPARATOR}${COLOR_RESET}\n"
 
-    read -p "Nome do Servidor: " SERVER_NAME
-    read -p "Mensagem do Servidor (MOTD): " SERVER_MOTD
-    read -p "Dificuldade (peaceful, easy, normal, hard): " SERVER_DIFFICULTY
-    read -p "Modo do servidor (survival, creative, adventure, spectator): " SERVER_GAMEMODE
-    read -p "Online Mode (true para original, false para pirata): " ONLINE_MODE
+    read -p "Nome do Servidor (MOTD): " SERVER_MOTD
+    read -p "Dificuldade (peaceful, easy, normal, hard) [default: normal]: " SERVER_DIFFICULTY
+    SERVER_DIFFICULTY=${SERVER_DIFFICULTY:-normal}
     read -p "Versão do Minecraft (Enter para ${MC_LATEST}): " MC_VERSION
     MC_VERSION=${MC_VERSION:-$MC_LATEST}
     read -p "Versão do Fabric (Enter para ${FABRIC_LATEST}): " FABRIC_VERSION
     FABRIC_VERSION=${FABRIC_VERSION:-$FABRIC_LATEST}
     read -p "Quantidade de RAM para alocar (GB): " RAM_GB
 
-    # Criar diretório do servidor
-    SERVER_DIR="${HOME}/${SERVER_NAME}"
+    # Criar diretório do servidor em /minecraft
+    SERVER_DIR="/minecraft"
     mkdir -p "$SERVER_DIR"
     cd "$SERVER_DIR" || exit
 
@@ -129,7 +121,7 @@ enforce-whitelist=true
 entity-broadcast-range-percentage=100
 force-gamemode=false
 function-permission-level=2
-gamemode=${SERVER_GAMEMODE}
+gamemode=survival
 generate-structures=true
 generator-settings=
 hardcore=false
@@ -142,7 +134,7 @@ max-tick-time=120000
 max-world-size=29999984
 motd=${SERVER_MOTD}
 network-compression-threshold=256
-online-mode=${ONLINE_MODE}
+online-mode=true
 op-permission-level=4
 player-idle-timeout=0
 prevent-proxy-connections=false
@@ -180,10 +172,8 @@ EOF
 
     show_success "Instalação concluída! Para iniciar o servidor, basta digitar: ${COLOR_GREEN}start${COLOR_RESET}"
 
-    SERVER_IP=$(get_server_ip)
-    SERVER_PORT=25565
-    echo -e "\n${COLOR_GREEN}Salve o IP e porta do servidor:${COLOR_RESET}"
-    echo -e "${COLOR_BLUE}IP: ${SERVER_IP}\nPorta: ${SERVER_PORT}${COLOR_RESET}"
+    SERVER_IP=$(hostname -I | awk '{print $1}')
+    echo -e "\n${COLOR_GREEN}IP do Servidor:${COLOR_RESET} ${COLOR_BLUE}${SERVER_IP}:25565${COLOR_RESET}"
 }
 
 # Iniciar
