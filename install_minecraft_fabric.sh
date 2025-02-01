@@ -57,6 +57,16 @@ get_latest_versions() {
     FABRIC_INSTALLER_URL=$(curl -s https://meta.fabricmc.net/v2/versions/installer | jq -r '.[0].url')
 }
 
+# Criar alias permanente para iniciar o servidor com 'start'
+setup_alias() {
+    ALIAS_CMD="alias start='cd ${SERVER_DIR} && ./start.sh'"
+    
+    if ! grep -Fxq "$ALIAS_CMD" ~/.bashrc; then
+        echo "$ALIAS_CMD" >> ~/.bashrc
+        source ~/.bashrc
+    fi
+}
+
 # Instalar servidor
 install_server() {
     show_header
@@ -163,18 +173,15 @@ EOF
 
     chmod +x start.sh
 
-    show_success "Instalação concluída!"
+    # Configurar alias para rodar com 'start'
+    setup_alias
+
+    show_success "Instalação concluída! Para iniciar o servidor, basta digitar: ${COLOR_GREEN}start${COLOR_RESET}"
 
     SERVER_IP=$(get_server_ip)
     SERVER_PORT=25565
     echo -e "\n${COLOR_GREEN}Salve o IP e porta do servidor:${COLOR_RESET}"
     echo -e "${COLOR_BLUE}IP: ${SERVER_IP}\nPorta: ${SERVER_PORT}${COLOR_RESET}"
-    
-    show_info "Para iniciar o servidor e mantê-lo rodando, use os seguintes comandos:"
-    echo -e "${COLOR_CYAN}1. Criar e entrar na sessão do servidor: screen -S minecraft${COLOR_RESET}"
-    echo -e "${COLOR_CYAN}2. Iniciar o servidor dentro do screen: ./start.sh${COLOR_RESET}"
-    echo -e "${COLOR_CYAN}3. Para sair do screen sem encerrar o servidor: Pressione CTRL + A, depois D${COLOR_RESET}"
-    echo -e "${COLOR_CYAN}4. Para voltar ao servidor: screen -r minecraft${COLOR_RESET}"
 }
 
 # Iniciar
